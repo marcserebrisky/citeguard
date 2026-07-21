@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "citeguard"
+version = "0.1.0"
+description = "Verify a reference list against authoritative bibliographic APIs (Crossref, OpenAlex, PubMed): retractions, fabrications, and metadata mismatches."
+requires-python = ">=3.10"
+dependencies = [
+    "requests>=2.28",
+    "rapidfuzz>=3.0",
+    "bibtexparser>=1.4,<2",
+    "python-docx>=1.0",
+]
+
+[project.optional-dependencies]
+# For local A2A serving (`serve-handler`) and running the test suite.
+dev = ["pytest>=7"]
+
+# handler.py is a top-level adapter module loaded by the framework via --file,
+# not part of the importable package. `pip install .` installs the engine + deps.
+[tool.setuptools]
+packages = ["citeguard"]

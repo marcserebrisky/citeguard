@@ -1,0 +1,3 @@
+1. Jinek, M., Chylinski, K., Fonfara, I., Hauer, M., Doudna, J. A., & Charpentier, E. (2012). A programmable dual-RNA-guided DNA endonuclease in adaptive bacterial immunity. Science, 337(6096), 816-821. https://doi.org/10.1126/science.1225829
+2. Wakefield, A. J., Murch, S. H., Anthony, A., et al. (1998). Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children. The Lancet, 351(9103), 637-641. https://doi.org/10.1016/S0140-6736(97)11096-0
+3. Smith, J., & Doe, J. (2023). Emergent quantum coherence in ambient-temperature photosynthetic complexes. Journal of Fabricated Results, 12(3), 45-67. https://doi.org/10.1234/jfake.2023.99999

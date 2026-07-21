@@ -1,0 +1,37 @@
+{
+  "name": "CiteGuard",
+  "description": "Verifies a reference list against authoritative bibliographic APIs (Crossref, OpenAlex, PubMed). Flags retracted, fabricated/not-found, and metadata-mismatched citations, each anchored to a real record or an explicit 'not found'.",
+  "url": "http://127.0.0.1:9110/",
+  "version": "0.1.0",
+  "protocolVersion": "0.3.0",
+  "preferredTransport": "JSONRPC",
+  "provider": {
+    "organization": "WashU DTRC Hackathon Team",
+    "url": "https://dtrc.wustl.edu/"
+  },
+  "capabilities": {
+    "streaming": true,
+    "pushNotifications": false,
+    "stateTransitionHistory": true
+  },
+  "defaultInputModes": ["text/plain", "application/json"],
+  "defaultOutputModes": ["text/plain", "application/json"],
+  "securitySchemes": {},
+  "security": [],
+  "skills": [
+    {
+      "id": "citeguard/verify-bibliography",
+      "name": "Verify a bibliography",
+      "description": "Check every citation in a .bib, .ris, .docx, or pasted reference list against Crossref, OpenAlex, and PubMed. Returns a per-reference verdict (verified, retracted, not-found/possibly-fabricated, metadata-mismatch, or unverifiable grey literature) with the canonical record link and match confidence.",
+      "tags": ["citation-verification", "retraction-check", "reference-integrity", "nlp", "read"],
+      "examples": [
+        "Verify the references in my attached .bib file.",
+        "Check this reference list for retracted or fabricated citations.",
+        "Do all the DOIs in my manuscript's bibliography resolve to the right papers?"
+      ],
+      "inputModes": ["text/plain", "application/json"],
+      "outputModes": ["text/plain", "application/json"],
+      "security": []
+    }
+  ]
+}

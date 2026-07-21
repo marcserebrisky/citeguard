@@ -1,0 +1,58 @@
+% Sample bibliography for CiteGuard — deliberately mixed so every verdict path
+% is exercised against the live APIs.
+
+% 1. Real, well-indexed, NOT retracted -> expect VERIFIED.
+@article{jinek2012crispr,
+  author  = {Jinek, Martin and Chylinski, Krzysztof and Fonfara, Ines and Hauer, Michael and Doudna, Jennifer A. and Charpentier, Emmanuelle},
+  title   = {A Programmable Dual-RNA--Guided DNA Endonuclease in Adaptive Bacterial Immunity},
+  journal = {Science},
+  year    = {2012},
+  doi     = {10.1126/science.1225829}
+}
+
+% 2. Real DOI, famously RETRACTED -> expect RETRACTED.
+@article{wakefield1998,
+  author  = {Wakefield, A J and Murch, S H and Anthony, A and others},
+  title   = {Ileal-lymphoid-nodular hyperplasia, non-specific colitis, and pervasive developmental disorder in children},
+  journal = {The Lancet},
+  year    = {1998},
+  doi     = {10.1016/S0140-6736(97)11096-0}
+}
+
+% 3. Fabricated: plausible-looking but non-existent DOI -> expect NOT_FOUND.
+@article{fabricated2023,
+  author  = {Smith, Jane and Doe, John},
+  title   = {Emergent Quantum Coherence in Ambient-Temperature Photosynthetic Complexes},
+  journal = {Journal of Fabricated Results},
+  year    = {2023},
+  doi     = {10.1234/jfake.2023.99999}
+}
+
+% 4. Real DOI, but the title has been swapped -> expect METADATA MISMATCH.
+%    10.1038/nature14539 is LeCun, Bengio & Hinton, "Deep learning" (Nature 2015).
+@article{mismatch2015,
+  author  = {LeCun, Yann and Bengio, Yoshua and Hinton, Geoffrey},
+  title   = {A Field Guide to Ambient Quantum Teapots and Their Habitats},
+  journal = {Nature},
+  year    = {2015},
+  doi     = {10.1038/nature14539}
+}
+
+% 5. A real, well-indexed book (no DOI) -> expect VERIFIED (books CAN verify
+%    when an authoritative index has them; grey literature is not automatically
+%    "unverifiable").
+@book{cormen2009algorithms,
+  author    = {Cormen, Thomas H. and Leiserson, Charles E. and Rivest, Ronald L. and Stein, Clifford},
+  title     = {Introduction to Algorithms},
+  publisher = {MIT Press},
+  year      = {2009}
+}
+
+% 6. Genuine grey literature (an unpublished internal document) -> expect
+%    UNVERIFIABLE: not indexed anywhere, but that is NOT evidence it is fake.
+@unpublished{lab2024sop,
+  author = {Rivera, Dana},
+  title  = {Standard Operating Procedure for Cryostat Sectioning (Internal Lab Protocol, v3)},
+  note   = {Unpublished internal laboratory protocol},
+  year   = {2024}
+}
