@@ -25,7 +25,7 @@ _LABEL = {
     RETRACTED: "RETRACTED",
     NOT_FOUND: "NOT FOUND",
     MISMATCH: "METADATA MISMATCH",
-    LIKELY_MATCH: "LIKELY MATCH — confirm",
+    LIKELY_MATCH: "LIKELY MATCH (confirm)",
     UNVERIFIABLE: "UNVERIFIABLE (grey literature)",
     LOOKUP_ERROR: "LOOKUP ERROR",
     VERIFIED: "VERIFIED",
@@ -40,7 +40,7 @@ _DISCLOSURE = (
 )
 _LIMITS = (
     "CiteGuard confirms that a citation resolves to a real, non-retracted record "
-    "and that the metadata agrees — it does not judge whether a source is "
+    "and that the metadata agrees. It does not judge whether a source is "
     "appropriate or correctly interpreted. Books, theses, and reports are often "
     "not indexed and are marked UNVERIFIABLE, not wrong. Absence from DOAJ is not "
     "evidence a journal is predatory. Always confirm flagged items against the "
@@ -50,7 +50,7 @@ _LIMITS = (
 
 def _verdict_line(v: Verdict) -> str:
     rec = v.record
-    head = f"- {_ICON.get(v.status, '•')} **{_LABEL.get(v.status, v.status)}** — {v.reference.label}"
+    head = f"- {_ICON.get(v.status, '•')} **{_LABEL.get(v.status, v.status)}**: {v.reference.label}"
     detail: list[str] = []
     if rec and rec.url:
         detail.append(f"[{rec.source} record]({rec.url})")
@@ -79,12 +79,12 @@ def render_markdown(report: VerificationReport) -> str:
 
     problems = c[RETRACTED] + c[NOT_FOUND] + c[MISMATCH]
     lines: list[str] = []
-    lines.append(f"## CiteGuard — checked {total} reference{'s' if total != 1 else ''}")
+    lines.append(f"## CiteGuard: checked {total} reference{'s' if total != 1 else ''}")
     headline = (f"**{problems} need attention** "
                 f"({c[RETRACTED]} retracted, {c[NOT_FOUND]} not found, {c[MISMATCH]} mismatched)."
                 if problems else "**No retracted, missing, or mismatched citations found.**")
     lines.append(headline)
-    summary_bits = [f"{_ICON[s]} {_LABEL[s].split(' —')[0].split(' (')[0]}: {c[s]}"
+    summary_bits = [f"{_ICON[s]} {_LABEL[s].split(' (')[0]}: {c[s]}"
                     for s in _SECTION_ORDER if c[s]]
     lines.append(" | ".join(summary_bits))
     if report.truncated_from:

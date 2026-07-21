@@ -1,180 +1,206 @@
 # CiteGuard
 
-**Verify a reference list against authoritative bibliographic databases — catching retracted, fabricated, and mismatched citations before they reach a reviewer.**
+Run your reference list past the databases that actually know whether a paper exists. CiteGuard reads a bibliography and checks every citation against Crossref, OpenAlex, PubMed, and arXiv. For each one it tells you whether it resolves to a real record and whether the details you typed actually match that record. It also catches the citations nobody wants to miss: the retracted ones, and the ones that were quietly made up.
 
-CiteGuard is an [A2A](https://a2a-protocol.org/) agent built on the DTRC starter skeleton (**Path B** — a custom handler). You give it a bibliography (`.bib`, `.ris`, `.docx`, or a pasted reference list); it checks every citation against **Crossref, OpenAlex, and PubMed** and returns a per-reference verdict, each anchored to a real record link or an explicit "not found." It **calls no LLM** — every verdict is deterministic and reproducible.
+It's an [A2A](https://a2a-protocol.org/) agent built on the DTRC starter skeleton, and it runs as a Path B custom handler. Give it a `.bib`, `.ris`, or `.docx` file, or paste a list straight into the message. Every verdict links to a real record you can open yourself, or it says plainly that nothing turned up. No LLM runs anywhere in the pipeline, so the same bibliography always produces the same result.
 
 ---
 
-## The six questions (start here)
+## Start here: the six questions
+
+Every DTRC submission has to answer these, so here they are up front.
 
 **1. What research workflow does it improve?**
-The pre-submission / pre-review **reference-integrity check**. Before a manuscript, thesis chapter, grant, or systematic review goes out, someone should confirm that every citation (a) points to a real paper, (b) has metadata that matches the real record, and (c) hasn't been **retracted**. Today that's manual DOI-clicking, one reference at a time — tedious enough that it's usually skipped. It matters more now that people draft with LLMs, which invent plausible-looking but nonexistent citations. CiteGuard does the whole list in one pass.
+
+The last check before a reference list leaves your hands. Before a manuscript or a grant goes out, someone's supposed to confirm that every citation points to a real paper whose details match the record, and that none of them have been retracted. In practice that means opening DOIs one at a time, and it's dull enough that people skip it. The risk went up once drafting with LLMs became normal, because those models invent citations that read perfectly and lead nowhere. CiteGuard clears the whole list in one pass.
 
 **2. Who at WashU would benefit?**
-- **Graduate students & PIs** finalizing a manuscript, dissertation, or grant reference list.
-- **Peer reviewers & journal-club leads** doing a fast integrity pass on a submission.
-- **Research administrators / grants managers** QA-ing citations in a proposal or report.
-- **Becker Medical Library** staff supporting authors and systematic reviewers.
+
+- Grad students and PIs putting the last polish on something they're about to submit.
+- Reviewers who want a quick integrity pass on a paper they've been handed.
+- Research admins and grants managers checking a proposal's citations before it goes out.
+- Becker Medical Library folks who help authors and run systematic reviews.
 
 **3. What does it do that a general chatbot would not?**
-A chatbot will *confirm a citation that does not exist* and cannot know today's retraction status. CiteGuard **anchors every verdict to a live authoritative record or an explicit "no record found"** — it never asserts a paper is real without a resolvable identifier, and it reads retraction status straight from Crossref/OpenAlex/PubMed. It also flags the subtle case a chatbot can't: a **real DOI attached to the wrong title** (a classic fabrication/copy-paste tell).
+
+A chatbot will cheerfully confirm a paper that doesn't exist, and it has no idea what got retracted last week. CiteGuard won't call anything real unless a database hands back a matching record, and it reads retraction status straight from the source. It also catches something a chatbot can't: a real, working DOI pasted onto the wrong title. That last one is a classic sign a citation was fabricated or copied carelessly.
 
 **4. What is it designed to handle well?**
-- "Verify the references in my attached `.bib` / `.docx` / `.ris` file."
-- "Check this reference list for retracted or fabricated citations." (paste the list)
-- "Do all the DOIs in my bibliography resolve to the right papers?"
-- Mixed lists of journal articles, preprints (arXiv), and grey literature (books/theses).
-- **Ambiguous / failure inputs:** empty input → asks for a file or list; an unparseable upload → reported per-file, never crashes the run; a citation with no identifier → resolved by a bibliographic query or marked `NOT_FOUND`, never guessed.
 
-**5. What tools, files, APIs does it use?**
-Inputs: `.bib`, `.ris`, `.docx`, or pasted text. APIs (all **free/keyless**): **Crossref** (metadata + Retraction-Watch-integrated retraction signals), **OpenAlex** (`is_retracted`, cross-checks, title-search recall), **PubMed E-utilities** (biomedical retraction via publication type), **arXiv API** (authoritative resolution of arXiv IDs), plus enrichment via **DOAJ** (open-access journal listing) and **Unpaywall** (open-access links). Fuzzy matching via `rapidfuzz`. No other agents required.
+Prompts like:
 
-**6. How does it handle uncertainty, privacy, credentials, limitations?**
-- **Uncertainty:** every verdict carries per-field match scores (title/author/year) and the canonical record link so a human can confirm. Weak matches are labeled `LIKELY_MATCH`, not `VERIFIED`.
-- **No overclaiming:** a "VERIFIED" verdict requires **multi-field agreement**, so a fuzzy title match alone can never bind a fabricated citation to a real record. Retraction is only asserted from authoritative fields, and it's cross-checked across sources.
-- **Privacy:** only **identifiers, titles, author names, and years** are sent to the public APIs. **Your manuscript body is never transmitted.** This is stated in every response.
-- **Credentials:** none required. An optional NCBI API key (raises PubMed rate limits) is read from `context["credentials"]` (deployed) or the `NCBI_API_KEY` env var (local) — never hard-coded.
-- **Limitations (stated in output):** it confirms a citation is *real and non-retracted with matching metadata* — it does **not** judge whether a source is appropriate or correctly interpreted. Books/theses/reports are often not indexed and are marked `UNVERIFIABLE` (not "wrong"). Absence from DOAJ is **not** evidence a journal is predatory.
+- "Verify the references in my attached `.bib` file."
+- "Check this reference list for anything retracted or made up." (then paste it)
+- "Do all the DOIs in my bibliography actually point to the right papers?"
+
+It handles mixed lists too, with journal articles sitting next to arXiv preprints next to books. And it's built to fail gracefully. Send it nothing and it asks for a file or a list. Upload something it can't parse and it flags that one file instead of falling over. Give it a citation with no identifier and it either finds the match by searching or marks it `NOT_FOUND`. It never guesses.
+
+**5. What tools and APIs does it use?**
+
+Inputs are `.bib`, `.ris`, `.docx`, or pasted text. Everything it queries is free and needs no key:
+
+- **Crossref** for metadata and Retraction-Watch retraction signals
+- **OpenAlex** for `is_retracted`, cross-checks, and title-search recall
+- **PubMed** (E-utilities) for biomedical retractions via publication type
+- **arXiv** for resolving arXiv IDs exactly
+- **DOAJ** and **Unpaywall** for the extras, meaning open-access journal listing and open-access links
+
+Matching runs on `rapidfuzz`. Nothing else, and no other agents.
+
+**6. How does it handle uncertainty, privacy, credentials, and limitations?**
+
+Uncertainty shows up in the open. Every verdict carries per-field match scores and a link to the record, so you can judge it yourself. A shaky match gets labeled `LIKELY_MATCH`, never `VERIFIED`.
+
+It's careful about not overclaiming. A `VERIFIED` needs more than one field to agree, so a lucky title match can't quietly bind a fake citation to some real paper. Retraction only gets asserted from authoritative fields, and it's confirmed across more than one source.
+
+On privacy, the only things that leave your machine are identifiers, titles, author names, and years. Your manuscript text stays put, and every response says so.
+
+Credentials aren't required at all. There's one optional NCBI key that bumps up PubMed's rate limit, read from `context["credentials"]` when deployed or from `NCBI_API_KEY` locally. It's never written into the code.
+
+The limits are stated in the output itself. CiteGuard tells you a citation is real, unretracted, and a metadata match. It does not tell you whether the source is any good or whether you've read it right. Books, theses, and reports often aren't indexed, so they come back `UNVERIFIABLE` rather than wrong. And a journal missing from DOAJ isn't evidence of anything shady.
 
 ---
 
-## Input / output
+## Input and output
 
-**Input** — any one or more of:
-- an attached `.bib`, `.ris`, or `.docx` file, and/or
-- a pasted reference list in the message text.
+**In:** one or more `.bib` / `.ris` / `.docx` files, a pasted reference list, or both at once.
 
-**Output** — the standard dual-channel A2A response:
-- **`answer`** (human-readable markdown): a summary line, then references grouped by verdict (problems first), each with the record link, match scores, and notes; plus a data-handling + limitations footer.
-- **structured keys** (machine-readable `DataPart`) for another agent/tool to reuse:
-  - `summary` — counts per status (`{RETRACTED, NOT_FOUND, MISMATCH, LIKELY_MATCH, UNVERIFIABLE, LOOKUP_ERROR, VERIFIED, TOTAL}`).
-  - `references` — one object per citation: `status`, `confidence`, `input`, `matched_record` (source, DOI, URL, `is_retracted`, `retraction_sources`, OA URL), `match_scores`, `sources_checked`, `notes`.
-  - `meta` — sources consulted, thresholds used, and the data-flow disclosure.
+**Out:** the usual two-channel A2A response.
 
-### Verdicts
+- `answer` is human-readable markdown. It opens with a one-line summary, then lists references grouped by verdict with the problems first, each showing its record link, match scores, and any notes. A short footer covers data handling and limits.
+- The structured `DataPart` is there for another agent or tool to pick up:
+  - `summary`: counts per status (`RETRACTED`, `NOT_FOUND`, `MISMATCH`, `LIKELY_MATCH`, `UNVERIFIABLE`, `LOOKUP_ERROR`, `VERIFIED`, `TOTAL`)
+  - `references`: one object per citation with `status`, `confidence`, `input`, `matched_record` (source, DOI, URL, `is_retracted`, `retraction_sources`, OA URL), `match_scores`, `sources_checked`, and `notes`
+  - `meta`: which sources were consulted, the thresholds used, and the data-flow disclosure
 
-| Status | Meaning |
+### The verdicts
+
+| Status | What it means |
 |---|---|
-| ✅ `VERIFIED` | Resolves to a real record and the metadata agrees. |
-| ⛔ `RETRACTED` | Resolves **and** is flagged retracted by ≥1 authoritative source. |
-| ❌ `NOT_FOUND` | No record in Crossref/OpenAlex/PubMed — possible fabrication, typo, or non-indexed source. |
-| ⚠️ `MISMATCH` | The DOI/PMID resolves, but to a **different** work (wrong or reused identifier). |
-| 🔎 `LIKELY_MATCH` | A good query match with no identifier supplied — confirm it's the intended work. |
-| ❓ `UNVERIFIABLE` | Grey literature (book/thesis/report) not reliably indexed by these APIs. |
-| 🔌 `LOOKUP_ERROR` | Every source errored for this reference (network/rate limit) — verify manually. |
+| ✅ `VERIFIED` | Resolves to a real record, and the metadata agrees. |
+| ⛔ `RETRACTED` | Resolves, and at least one authoritative source flags it retracted. |
+| ❌ `NOT_FOUND` | Nothing in Crossref, OpenAlex, or PubMed. Could be fabricated, a typo, or just not indexed. |
+| ⚠️ `MISMATCH` | The DOI or PMID resolves, but to a different paper. Wrong or reused identifier. |
+| 🔎 `LIKELY_MATCH` | A decent match found by search, with no identifier to confirm it. Worth a look. |
+| ❓ `UNVERIFIABLE` | Grey literature (a book, thesis, or report) that these databases don't index reliably. |
+| 🔌 `LOOKUP_ERROR` | Every source errored on this one, usually network or rate limit. Check it by hand. |
 
 ---
 
-## Entry point (for deployment)
+## Deploying it
 
-This is a **Path B** custom-handler agent.
+It's a Path B custom-handler agent. Here's what the DTRC team needs.
 
 | Field | Value |
 |---|---|
-| **Handler type** | Custom (Python) |
-| **Entry file** | `handler.py` (at the repo/zip root) |
-| **Class name** | `CiteGuardHandler` |
-| **Python version** | 3.10+ (developed & tested on 3.13) |
-| **Requirements** | ships `pyproject.toml` and `requirements.txt` (`requests`, `rapidfuzz`, `bibtexparser<2`, `python-docx`) |
-| **System packages** | **none** (pure pip; no `tesseract`/`ffmpeg`/etc.) |
-| **Hardware** | none special (no GPU, modest RAM) |
-| **Required credentials** | none. Optional: `ncbi_api_key` (raises PubMed rate limits). |
-| **OASF skills** | `citeguard/verify-bibliography` (see [`agent.card.json`](agent.card.json)) |
+| Handler type | Custom (Python) |
+| Entry file | `handler.py` (at the repo root) |
+| Class name | `CiteGuardHandler` |
+| Python version | 3.10 or newer. Tested on 3.12 and 3.13. |
+| Requirements | `pyproject.toml` and `requirements.txt` ship with it: `requests`, `rapidfuzz`, `bibtexparser<2`, `python-docx` |
+| System packages | none. It's pure pip, no `tesseract` or `ffmpeg` or anything like that. |
+| Hardware | nothing special. No GPU, modest RAM. |
+| Required credentials | none. An optional `ncbi_api_key` raises PubMed's rate limit. |
+| OASF skills | `citeguard/verify-bibliography` (see [`agent.card.json`](agent.card.json)) |
 
-> **Packaging note for the upload path:** the INTEGRATION_GUIDE lists `*.card.json` as a *reserved* root name for the Custom-Python upload (the system generates the card). [`agent.card.json`](agent.card.json) is included here to **document the intended skills/examples** (enter them on the registration form) and to run locally with `serve-handler --card`; exclude it from the upload archive. (Filed as repo feedback — see below.)
+One packaging heads-up. The INTEGRATION_GUIDE treats `*.card.json` as a reserved name for the Custom-Python upload, since the system generates the card itself. The [`agent.card.json`](agent.card.json) here is for documenting the skill and examples (type them into the registration form) and for running locally with `serve-handler --card`. Leave it out of the upload archive. It's written up in the repo feedback below.
 
 ---
 
-## Setup & run locally
+## Running it locally
 
 ```bash
-# from the agent-skeleton directory, make `agent_skeleton` importable:
-pip install -e /path/to/agent-skeleton
+# make agent_skeleton importable (it's the starter repo, a sibling of this one):
+pip install -e ../agent-skeleton-main      # or wherever the starter lives
 
-# install CiteGuard's own dependencies:
-cd citeguard-agent
-pip install -r requirements.txt          # or: pip install .
+# CiteGuard's own dependencies:
+pip install -r requirements.txt            # or: pip install .
 
-# optional config (CiteGuard needs NO secrets):
-cp .env.example .env                      # set CITEGUARD_CONTACT_EMAIL for polite pools + OA links
+# optional, and there are no secrets involved:
+cp .env.example .env                       # set CITEGUARD_CONTACT_EMAIL for the polite pools and OA links
 ```
 
-**Verify it works — three ways, fastest first:**
+Three ways to see it work, quickest first:
 
 ```bash
-# 1. Offline unit tests (parser, matcher, verdict logic) — no network:
+# 1. Offline unit tests. No network. Covers parsing, matching, and the verdict logic:
 python -m pytest tests -q
 
-# 2. Live end-to-end on the sample bibliography (hits the real APIs):
-python examples/run_local.py               # or: python examples/run_local.py examples/sample_refs.txt
+# 2. Live run on the sample bibliography (this one hits the real APIs):
+python examples/run_local.py               # or point it at examples/sample_refs.txt
 
-# 3. Over A2A, exactly as deployed:
+# 3. Over A2A, the way it actually deploys:
 python -m agent_skeleton.serve serve-handler \
     --file handler.py --class CiteGuardHandler --host 127.0.0.1 --port 9110 --card agent.card.json
-python examples/a2a_smoke.py               # in another terminal
+python examples/a2a_smoke.py               # from another terminal
 ```
 
-The bundled [`tests/sample.bib`](tests/sample.bib) is deliberately mixed and exercises every verdict (live output):
+The [`tests/sample.bib`](tests/sample.bib) file is rigged to hit every verdict. Here's what comes back:
 
 ```
-## CiteGuard — checked 6 references
+## CiteGuard: checked 6 references
 **3 need attention** (1 retracted, 1 not found, 1 mismatched).
 ⛔ RETRACTED: 1 | ❌ NOT FOUND: 1 | ⚠️ METADATA MISMATCH: 1 | ❓ UNVERIFIABLE: 1 | ✅ VERIFIED: 2
 ```
 
-- ✅ Jinek et al. 2012 (CRISPR, *Science*) → **VERIFIED**
-- ⛔ Wakefield et al. 1998 (*Lancet*) → **RETRACTED** (flagged by Crossref *and* OpenAlex)
-- ❌ a fabricated DOI → **NOT FOUND**
-- ⚠️ a real DOI with a swapped title → **METADATA MISMATCH** (title similarity 19%)
-- ✅ *Introduction to Algorithms* (a real book, no DOI) → **VERIFIED** (found in OpenAlex — grey literature is not automatically "unverifiable")
-- ❓ an unpublished internal lab protocol → **UNVERIFIABLE** (not indexed anywhere — but that is *not* evidence it is fake)
+- ✅ Jinek et al. 2012 (CRISPR, *Science*) comes back **VERIFIED**
+- ⛔ Wakefield et al. 1998 (*Lancet*) comes back **RETRACTED**, flagged by both Crossref and OpenAlex
+- ❌ a made-up DOI comes back **NOT FOUND**
+- ⚠️ a real DOI with the wrong title on it comes back **MISMATCH** (title similarity 19%)
+- ✅ *Introduction to Algorithms*, a real book with no DOI, comes back **VERIFIED** because OpenAlex has it. Grey literature isn't automatically unverifiable.
+- ❓ an unpublished internal lab protocol comes back **UNVERIFIABLE**, which isn't the same as fake
 
 ---
 
 ## How it works
 
 ```
-handler.py (CiteGuardHandler, Path-B adapter)
-  └─ citeguard/                     ← engine; imports nothing from agent_skeleton
-       parse.py    .bib/.ris/.docx/text → Reference[]  (extracts DOI/arXiv/PMID)
-       clients.py  Crossref · OpenAlex · PubMed · arXiv · DOAJ · Unpaywall  (retry/backoff, polite)
-       match.py    per-field rapidfuzz scoring + confidence
-       verify.py   resolve → aggregate retraction signals → classify (thread-pooled)
-       report.py   dual-channel: human markdown + structured dict
+handler.py  (CiteGuardHandler, the Path-B adapter)
+  └─ citeguard/                    the engine; imports nothing from agent_skeleton
+       parse.py    .bib/.ris/.docx/text  ->  Reference[]   (pulls out DOI/arXiv/PMID)
+       clients.py  Crossref · OpenAlex · PubMed · arXiv · DOAJ · Unpaywall  (polite, retry/backoff)
+       match.py    per-field rapidfuzz scoring and confidence
+       verify.py   resolve, gather retraction signals, classify  (thread-pooled)
+       report.py   the two channels: human markdown plus a structured dict
 ```
 
-**Design choices that matter for trust:**
-- **Deterministic, no LLM.** Parsing is exact; verification is API lookups + fuzzy matching. Reproducible, and it sidesteps the "no shared LLM endpoint yet" constraint entirely.
-- **Retraction dominates and is cross-checked.** Signals come from OpenAlex `is_retracted`, PubMed publication type, and the Crossref `RETRACTED:` marker; the response lists *which* sources flagged it.
-- **Multi-source, identifier-first resolution.** DOI → Crossref+OpenAlex; PMID → PubMed+OpenAlex; arXiv ID → the arXiv API (authoritative — no fuzzy matching); no identifier → Crossref bibliographic query + OpenAlex title search, then an OpenAlex retraction cross-check.
-- **Blocking work runs off the event loop** (`asyncio.to_thread`) so the framework heartbeat keeps long batches alive; per-reference lookups are thread-pooled.
+A few decisions carry the trust story.
 
-Thresholds (title/author/year agreement) are documented in `verify.py` and echoed in the response `meta`, so verdicts are auditable rather than magic.
+**No model, on purpose.** Parsing is exact and verification is API lookups plus fuzzy matching, so runs are reproducible. It also means CiteGuard doesn't care that there's no shared LLM endpoint yet.
+
+**Retraction gets cross-checked, not taken on one source's word.** The signals come from OpenAlex's `is_retracted`, PubMed's publication type, and the `RETRACTED:` marker Crossref puts on titles. The response names which sources flagged it.
+
+**Identifiers first, always.** A DOI goes to Crossref and OpenAlex. A PMID goes to PubMed and OpenAlex. An arXiv ID goes to the arXiv API, which is exact, so there's no fuzzy guessing. Only when there's no identifier at all does it fall back to a Crossref search plus an OpenAlex title search, and even then it re-checks retraction on whatever it finds.
+
+**Slow work stays off the event loop.** The blocking lookups run in a thread pool through `asyncio.to_thread`, which keeps the framework's heartbeat alive on long lists.
+
+The title, author, and year thresholds live in `verify.py` and get echoed back in the response `meta`, so you can see why a verdict landed where it did instead of taking it on faith.
 
 ---
 
-## Repo feedback filed against the starter skeleton
+## Repo feedback for the starter skeleton
 
-Friction/bugs hit while building (see `REPO_FEEDBACK.md` for repro steps, expected vs. actual, and environment):
+Things I ran into while building this. Full repro steps, expected-vs-actual, and environment are in [`REPO_FEEDBACK.md`](REPO_FEEDBACK.md).
 
-1. **`*.card.json` reserved-name vs. the shipped `agent.card.json`.** The starter ships `agent.card.json` at the package root, but the INTEGRATION_GUIDE lists `*.card.json` as a reserved root name for Path-B uploads — a naming collision that trips up first-time submitters.
-2. **`a2a-sdk==0.3.2` emits a `StarletteDeprecationWarning`** (`HTTP_413_REQUEST_ENTITY_TOO_LARGE`) on import under current Starlette — noise on every `serve`/import; worth a pin or filter note.
-3. *(Others captured during testing — see `REPO_FEEDBACK.md`.)*
+1. **The `*.card.json` name clashes with the shipped file.** The starter ships `agent.card.json` at the root, yet the INTEGRATION_GUIDE lists `*.card.json` as reserved for Path-B uploads. A first-time submitter can't tell which one wins.
+2. **`a2a-sdk==0.3.2` warns on import.** You get a `StarletteDeprecationWarning` about `HTTP_413_REQUEST_ENTITY_TOO_LARGE` every time you import or serve. It's harmless but noisy, and worth a pin or a filter.
+3. A few smaller ones are written up in the same file.
 
 ---
 
-## Project layout
+## What's in here
 
 ```
-citeguard-agent/
-├── handler.py            # Path-B adapter — entry point (class CiteGuardHandler)
-├── citeguard/            # deterministic verification engine (LLM-free, A2A-free)
-│   ├── parse.py  clients.py  match.py  verify.py  report.py  models.py
-├── tests/                # offline unit tests + sample.bib
-├── examples/             # run_local.py (live) · a2a_smoke.py (over A2A) · sample_refs.txt
-├── agent.card.json       # identity + OASF skill (documentation / local --card)
-├── pyproject.toml  requirements.txt
-├── .env.example          # optional contact email + optional NCBI key (no secrets committed)
+.
+├── handler.py            # the Path-B adapter and entry point (class CiteGuardHandler)
+├── citeguard/            # the verification engine (no LLM, no A2A imports)
+│   ├── parse.py   clients.py   match.py   verify.py   report.py   models.py
+├── tests/                # offline unit tests, plus sample.bib
+├── examples/             # run_local.py (live), a2a_smoke.py (over A2A), sample_refs.txt
+├── agent.card.json       # identity and the OASF skill (docs, and local --card)
+├── pyproject.toml        # packaging and dependencies
+├── requirements.txt      # the same deps, for pip install -r
+├── .env.example          # optional contact email and NCBI key, no real secrets
+├── REPO_FEEDBACK.md      # bugs and friction found in the starter
 └── README.md
 ```
